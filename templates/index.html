@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #TodoList {
+            list-style: none;
+            padding: 0;
+        }
+
+        #TodoList li {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .delete-btn {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 3px 7px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        #message {
+            margin: 10px 0;
+            height: 20px;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 70%;
+            padding: 5px;
+        }
+
+        button[type="submit"] {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📝 Todo List</h1>
+
+        <div class="form">
+            <form id="todoForm">
+                <input type="text" id="taskinput" placeholder="Enter a new task..." required>
+                <button type="submit">Add Task</button>
+            </form>
+
+            <div id="message"></div>
+
+            <ul id="TodoList">
+                <!-- Tasks will be rendered here by JS -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('todoForm');
+        const taskInput = document.getElementById('taskinput');
+        const message = document.getElementById('message');
+        const TodoList = document.getElementById('TodoList');
+
+        // Function to create a todo list item with delete button
+        function createTodoItem(todo) {
+            const li = document.createElement("li");
+
+            const span = document.createElement("span");
+            span.textContent = todo.task;
+            li.appendChild(span);
+
+            const button = document.createElement("button");
+            button.textContent = "Delete";
+            button.classList.add("delete-btn");
+
+            button.addEventListener("click", async () => {
+                try {
+                    const delResponse = await fetch(`/delete/${todo._id}`, { method: "DELETE" });
+                    if (delResponse.ok) {
+                        li.remove();
+                    } else {
+                        alert("❌ Error deleting task");
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+
+            li.appendChild(button);
+            return li;
+        }
+
+        // Render initial tasks from Flask
+        const initialTodos = {{ todos | tojson }};
+        initialTodos.forEach(todo => {
+            TodoList.appendChild(createTodoItem(todo));
+        });
+
+        // Handle form submission
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const task = taskInput.value.trim();
+            if (!task) return;
+
+            try {
+                const response = await fetch("/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ task })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    message.textContent = "✅ Task added!";
+                    taskInput.value = "";
+
+                    // Add only the latest task (last in the array) to the list
+                    const newTask = data.todos[data.todos.length - 1];
+                    TodoList.appendChild(createTodoItem(newTask));
+                } else {
+                    message.textContent = "❌ Error adding task";
+                }
+            } catch (error) {
+                message.textContent = "⚠️ Server error";
+                console.error(error);
+            }
+
+            setTimeout(() => { message.textContent = ""; }, 2000);
+        });
+    </script>
+</body>
+
+</html>
